@@ -60,6 +60,5 @@ The app will open in your default web browser, and you can begin uploading `.dta
 4. Push to the branch (`git push origin feature-branch`).
 5. Open a pull request with a description of the changes.
 
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 
