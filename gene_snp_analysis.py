@@ -26,7 +26,8 @@ def get_gene_location(gene_id_or_name):
     if response.status_code != 200:
         st.error(f"Error: {response.status_code} - {response.text}")
     else:
-        st.write(f"API Response for {gene_id_or_name}: {response.json()}")
+        # Only print to the console for debugging, not Streamlit UI
+        print(f"API Response for {gene_id_or_name}: {response.json()}")
 
     if response.status_code == 200 and response.json():
         results = response.json()
@@ -39,6 +40,7 @@ def get_gene_location(gene_id_or_name):
 
 def filter_gwas_variants(chromosome, base_pair_location, pval_threshold=5e-8, window_size=500_000):
     """ Filter GWAS variants based on location and p-value from the filtered CSV file """
+    chromosome = int(chromosome)
     try:
         # Load the filtered GWAS CSV file instead of the large .dta file
         df = pd.read_csv(gwas_file_path)
@@ -51,6 +53,17 @@ def filter_gwas_variants(chromosome, base_pair_location, pval_threshold=5e-8, wi
         st.error(f"An error occurred while filtering variants: {e}")
         return pd.DataFrame()  # Return an empty DataFrame in case of error
 
+def get_gene_id_from_symbol(gene_symbol):
+    """Fetch gene ID from gene symbol using the Ensembl API."""
+    url = f"{ENSEMBL_API}lookup/symbol/human/{gene_symbol}?content-type=application/json"
+    response = requests.get(url)
+
+    if response.status_code == 200 and response.json():
+        results = response.json()
+        if 'id' in results:
+            return results['id']
+    return None
+
 def check_gene_association_in_hopkins(gene_input):
     """ Check if gene is associated with HFpEF or HFrEF in the Hopkins dataset """
     hopkins_file_path = "/Users/Arun/Desktop/Northwestern/Research/ShahCardio/hopkins.dta"
@@ -59,6 +72,15 @@ def check_gene_association_in_hopkins(gene_input):
 
     hopkins_df['padjpef'] = pd.to_numeric(hopkins_df['padjpef'], errors='coerce')
     hopkins_df['padjref'] = pd.to_numeric(hopkins_df['padjref'], errors='coerce')
+
+    # If input is gene symbol, convert it to gene ID
+    gene_id = gene_input
+    if not gene_id.startswith('ENSG'):  # If it's not a gene ID
+        gene_id = get_gene_id_from_symbol(gene_input)
+
+    if gene_id is None:
+        st.error(f"Gene ID for {gene_input} not found.")
+        return pd.DataFrame(), pd.DataFrame()  # Return empty DataFrames
 
     sig_pef = hopkins_df[((hopkins_df['padjpef'] < 0.05) | (hopkins_df['padjpef'] == 0.0)) &
                          (hopkins_df['geneid'].str.upper() == gene_input.upper())]
